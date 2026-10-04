@@ -1,0 +1,19 @@
+#!/sbin/sh
+#################
+# KernelSU / Magisk Universal Module Installer
+# Created by Antigravity & Q.S@RDOR
+#################
+OUTFD=$2
+ZIPFILE=$3
+
+ui_print() { echo -e "ui_print $1\nui_print" >> /proc/self/fd/$OUTFD; }
+
+if [ -f /data/adb/ksud ]; then
+    exec /data/adb/ksud module install "$ZIPFILE"
+elif [ -f /data/adb/magisk/magisk ]; then
+    exec /data/adb/magisk/magisk --install-module "$ZIPFILE"
+elif [ -f /data/adb/ap/bin/apd ]; then
+    exec /data/adb/ap/bin/apd module install "$ZIPFILE"
+else
+    exec /data/adb/ksu/bin/ksud module install "$ZIPFILE" 2>/dev/null || exit 1
+fi

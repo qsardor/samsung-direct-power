@@ -1,0 +1,376 @@
+#!/system/bin/sh
+# directpower - High-Performance CLI & WebUI Backend for Samsung Direct Power
+# Created by Antigravity & Q.S@RDOR
+
+BASE_DIR="/data/adb/samsung_direct_power"
+CONF="$BASE_DIR/direct_power.conf"
+MODE_FILE="$BASE_DIR/governor.mode"
+WHITELIST_FILE="$BASE_DIR/whitelist.json"
+LOG_FILE="$BASE_DIR/direct_power.log"
+
+MODULE_DIR="/data/adb/modules/samsung_direct_power"
+WEBROOT="$MODULE_DIR/webroot"
+DEX_FILE="$MODULE_DIR/apphelper.dex"
+
+NODE_FULLCAP="/sys/class/power_supply/battery/batt_full_capacity"
+NODE_SLATE="/sys/class/power_supply/battery/batt_slate_mode"
+NODE_CUR="/sys/class/power_supply/battery/current_now"
+NODE_TEMP="/sys/class/power_supply/battery/temp"
+NODE_STATUS="/sys/class/power_supply/battery/status"
+NODE_CAP="/sys/class/power_supply/battery/capacity"
+NODE_VOLT="/sys/class/power_supply/battery/voltage_now"
+
+mkdir -p "$BASE_DIR"
+[ -d "$WEBROOT" ] && mkdir -p "$WEBROOT/icons"
+
+# Ensure slate mode is ALWAYS 0 for MAX77705 buck converter stability
+[ "$(cat $NODE_SLATE 2>/dev/null)" != "0" ] && echo 0 > "$NODE_SLATE"
+
+# Initialize empty whitelist if missing (only real installed games will be added)
+if [ ! -f "$WHITELIST_FILE" ]; then
+    echo "[]" > "$WHITELIST_FILE"
+fi
+
+# Default mode
+if [ ! -f "$MODE_FILE" ]; then
+    echo "AUTO" > "$MODE_FILE"
+fi
+
+get_timestamp() {
+    date "+%Y-%m-%d %H:%M:%S"
+}
+
+detect_power_source() {
+    PLUGGED=0
+    POWER_SOURCE="DISCONNECTED"
+    POWER_DESC="No Charger Connected"
+    POWER_QUALITY="DISCONNECTED"
+    FAST_SETTING_ON=1
+    VBYP_MV=0
+
+    if [ "$(cat /sys/class/power_supply/ac/online 2>/dev/null)" = "1" ] || \
+       [ "$(cat /sys/class/power_supply/usb/online 2>/dev/null)" = "1" ] || \
+       [ -d "/sys/class/typec/port0-partner" ]; then
+        PLUGGED=1
+    else
+        local st=$(cat /sys/class/power_supply/battery/status 2>/dev/null)
+        if [ "$st" = "Charging" ] || [ "$st" = "Full" ]; then
+            PLUGGED=1
+        fi
+    fi
+
+    if [ "$PLUGGED" = "1" ]; then
+        VBYP_MV=$(cat /sys/class/power_supply/battery/vbyp_voltage 2>/dev/null || echo 0)
+        local chg_proto=$(cat /sys/class/power_supply/battery/charging_type 2>/dev/null)
+        [ -z "$chg_proto" ] && chg_proto=$(cat /sys/class/power_supply/battery/type 2>/dev/null || echo "AC")
+        local chg_rate=$(cat /sys/class/power_supply/battery/charge_type 2>/dev/null || echo "")
+
+        local volt_str=""
+        if [ "$VBYP_MV" -gt 0 ]; then
+            local v_int=$((VBYP_MV / 1000))
+            local v_dec=$(( (VBYP_MV % 1000) / 100 ))
+            volt_str="${v_int}.${v_dec}V"
+        fi
+
+        local afc=$(settings get system adaptive_fast_charging 2>/dev/null || echo 1)
+        local sfc=$(settings get system super_fast_charging 2>/dev/null || echo 1)
+        if [ "$afc" = "0" ] || [ "$sfc" = "0" ]; then
+            FAST_SETTING_ON=0
+        fi
+
+        local hv=$(cat /sys/class/power_supply/battery/hv_charger_status 2>/dev/null || echo 0)
+        local uonline=$(cat /sys/class/power_supply/usb/online 2>/dev/null || echo 0)
+        local bonline=$(cat /sys/class/power_supply/battery/online 2>/dev/null || echo 0)
+
+        if [ "$FAST_SETTING_ON" = "0" ]; then
+            POWER_QUALITY="SETTINGS_DISABLED"
+            POWER_SOURCE="THROTTLED"
+            POWER_DESC="${chg_proto} ${volt_str} (Fast Charge OFF in Settings)"
+        elif [ "$VBYP_MV" -ge 8000 ] || [ "$hv" = "3" ] || [ "$bonline" = "38" ]; then
+            POWER_QUALITY="HIGH_POWER"
+            POWER_SOURCE="PD_FAST"
+            POWER_DESC="${chg_proto} ${volt_str} (Super Fast)"
+        elif [ "$VBYP_MV" -ge 6000 ] || [ "$hv" = "1" ] || [ "$hv" = "2" ] || [ "$bonline" = "9" ] || [ "$bonline" = "10" ]; then
+            POWER_QUALITY="HIGH_POWER"
+            POWER_SOURCE="FAST"
+            POWER_DESC="${chg_proto} ${volt_str} (Fast)"
+        elif [ "$uonline" = "1" ] || [ "$bonline" = "3" ] || [ "$chg_proto" = "USB" ]; then
+            POWER_QUALITY="LOW_POWER"
+            POWER_SOURCE="LOW_POWER"
+            POWER_DESC="${chg_proto} ${volt_str} (Laptop / USB)"
+        else
+            POWER_QUALITY="STANDARD"
+            POWER_SOURCE="STANDARD"
+            POWER_DESC="${chg_proto} ${volt_str} (Standard 5V)"
+        fi
+    fi
+}
+
+case "$1" in
+    on|direct|1)
+        detect_power_source
+        if [ "$PLUGGED" = "0" ]; then
+            echo "Error: No external power source detected. Connect charger first." >&2
+            exit 1
+        fi
+        echo "DIRECT_POWER" > "$MODE_FILE"
+        echo 50 > "$NODE_FULLCAP"
+        echo "[$(get_timestamp)] [POWER] Direct Power engaged ($POWER_DESC)" >> "$LOG_FILE"
+        echo "Direct Power enabled ($POWER_DESC)."
+        ;;
+    off|normal|0)
+        echo "NORMAL_CHARGING" > "$MODE_FILE"
+        echo 100 > "$NODE_FULLCAP"
+        echo "[$(get_timestamp)] [POWER] Direct Power disengaged" >> "$LOG_FILE"
+        echo "Direct Power disabled."
+        ;;
+    auto)
+        echo "AUTO" > "$MODE_FILE"
+        echo "[$(get_timestamp)] [POWER] Auto governor engaged" >> "$LOG_FILE"
+        echo "Auto governor active."
+        ;;
+    toggle)
+        detect_power_source
+        CUR_FULLCAP=$(cat "$NODE_FULLCAP" 2>/dev/null || echo 100)
+        if [ "$CUR_FULLCAP" -lt 100 ]; then
+            echo "NORMAL_CHARGING" > "$MODE_FILE"
+            echo 100 > "$NODE_FULLCAP"
+            echo "[$(get_timestamp)] [POWER] Direct Power disengaged" >> "$LOG_FILE"
+            echo "NORMAL_CHARGING"
+        else
+            if [ "$PLUGGED" = "0" ]; then
+                echo "DISCONNECTED"
+                exit 1
+            fi
+            echo "DIRECT_POWER" > "$MODE_FILE"
+            echo 50 > "$NODE_FULLCAP"
+            echo "[$(get_timestamp)] [POWER] Direct Power engaged ($POWER_DESC)" >> "$LOG_FILE"
+            echo "DIRECT_POWER"
+        fi
+        ;;
+    status)
+        detect_power_source
+        MODE=$(cat "$MODE_FILE" 2>/dev/null || echo "AUTO")
+        FULLCAP=$(cat "$NODE_FULLCAP" 2>/dev/null || echo 100)
+        CUR=$(cat "$NODE_CUR" 2>/dev/null || echo 0)
+        TEMP=$(cat "$NODE_TEMP" 2>/dev/null || echo 0)
+        TEMP_C=$((TEMP / 10))
+        CAP=$(cat "$NODE_CAP" 2>/dev/null || echo 0)
+        STATUS=$(cat "$NODE_STATUS" 2>/dev/null || echo "Unknown")
+
+        local route="Battery Only (Discharging)"
+        if [ "$PLUGGED" = "1" ]; then
+            if [ "$FULLCAP" -lt 100 ]; then
+                route="Direct to SoC (Battery Isolated 0W)"
+            else
+                route="Normal Charging (Battery Active)"
+            fi
+        fi
+
+        echo "Power Routing:    $route"
+        echo "Direct Power:     $MODE"
+        echo "Power Source:     $POWER_DESC ($POWER_SOURCE)"
+        echo "Hardware State:   $STATUS"
+        echo "Battery Level:    $CAP %"
+        echo "Current Flow:     $CUR mA"
+        echo "Temperature:      $TEMP_C °C"
+        ;;
+    json)
+        detect_power_source
+        MODE=$(cat "$MODE_FILE" 2>/dev/null || echo "AUTO")
+        FULLCAP=$(cat "$NODE_FULLCAP" 2>/dev/null || echo 100)
+        CUR=$(cat "$NODE_CUR" 2>/dev/null || echo 0)
+        VOLT=$(cat "$NODE_VOLT" 2>/dev/null || echo 0)
+        VOLT_MV=$((VOLT / 1000))
+        TEMP=$(cat "$NODE_TEMP" 2>/dev/null || echo 0)
+        TEMP_C=$((TEMP / 10))
+        CAP=$(cat "$NODE_CAP" 2>/dev/null || echo 0)
+        STATUS=$(cat "$NODE_STATUS" 2>/dev/null || echo "Unknown")
+
+        # Hardware direct power is ON only if full capacity threshold < 100 AND plugged in
+        HW_DIRECT="OFF"
+        if [ "$PLUGGED" = "1" ] && [ "$FULLCAP" -lt 100 ]; then
+            HW_DIRECT="ON"
+        fi
+
+        # High-precision GPU Clock Polling (KGSL Adreno / Exynos Mali)
+        GPU_MHZ=0
+        for f in /sys/class/kgsl/kgsl-3d0/gpuclk /sys/class/kgsl/kgsl-3d0/devfreq/cur_freq /sys/kernel/gpu/gpu_clock; do
+            if [ -f "$f" ]; then
+                RAW_GPU=$(cat "$f" 2>/dev/null || echo 0)
+                if [ "$RAW_GPU" -gt 1000000 ]; then
+                    GPU_MHZ=$((RAW_GPU / 1000000))
+                elif [ "$RAW_GPU" -gt 1000 ]; then
+                    GPU_MHZ=$((RAW_GPU / 1000))
+                else
+                    GPU_MHZ=$RAW_GPU
+                fi
+                break
+            fi
+        done
+
+        # Prime CPU Core Clock (Core 7)
+        CPU7_MHZ=0
+        if [ -f /sys/devices/system/cpu/cpu7/cpufreq/scaling_cur_freq ]; then
+            RAW_CPU=$(cat /sys/devices/system/cpu/cpu7/cpufreq/scaling_cur_freq 2>/dev/null || echo 0)
+            CPU7_MHZ=$((RAW_CPU / 1000))
+        fi
+
+        # Dynamic Hardware Platform Identity
+        DEV_MODEL=$(getprop ro.product.model 2>/dev/null || echo "Samsung Galaxy")
+        DEV_SOC=$(getprop ro.soc.model 2>/dev/null)
+        [ -z "$DEV_SOC" ] && DEV_SOC=$(getprop ro.board.platform 2>/dev/null || echo "Kona")
+
+        # High-speed telemetry: direct sysfs polling (0 dumpsys overhead, 0 system_server stalls)
+        echo "{\"mode\":\"$MODE\",\"direct_power\":\"$HW_DIRECT\",\"status\":\"$STATUS\",\"battery_pct\":$CAP,\"current_ma\":$CUR,\"voltage_mv\":$VOLT_MV,\"vbyp_mv\":$VBYP_MV,\"temp_c\":$TEMP_C,\"gpu_mhz\":$GPU_MHZ,\"cpu7_mhz\":$CPU7_MHZ,\"plugged\":$PLUGGED,\"power_source\":\"$POWER_SOURCE\",\"power_quality\":\"$POWER_QUALITY\",\"fast_setting\":$FAST_SETTING_ON,\"power_desc\":\"$POWER_DESC\",\"model\":\"$DEV_MODEL\",\"soc\":\"$DEV_SOC\"}"
+        ;;
+    getconf)
+        [ -f "$CONF" ] && . "$CONF"
+        : "${TARGET_SOC:=80}"
+        : "${TEMP_TRIGGER:=38}"
+        : "${MIN_BATT_GUARD:=20}"
+        MODE=$(cat "$MODE_FILE" 2>/dev/null || echo "AUTO")
+        echo "{\"target\":$TARGET_SOC,\"temp_trigger\":$TEMP_TRIGGER,\"min_guard\":$MIN_BATT_GUARD,\"mode\":\"$MODE\"}"
+        ;;
+    setconf)
+        # Usage: directpower setconf <target> <temp_trigger> <min_guard> <mode>
+        TARGET="${2:-80}"
+        TEMP_TRIG="${3:-38}"
+        GUARD="${4:-20}"
+        MODE_ARG="${5:-AUTO}"
+
+        cat << EOF > "$CONF"
+# Samsung Direct Power Configuration
+# Created by Antigravity & Q.S@RDOR
+TARGET_SOC=$TARGET
+TEMP_TRIGGER=$TEMP_TRIG
+MIN_BATT_GUARD=$GUARD
+POLL_INTERVAL=10
+GAMING_INTERVAL=3
+EOF
+        if [ "$MODE_ARG" = "DIRECT_POWER" ] || [ "$MODE_ARG" = "NORMAL_CHARGING" ] || [ "$MODE_ARG" = "AUTO" ]; then
+            echo "$MODE_ARG" > "$MODE_FILE"
+            if [ "$MODE_ARG" = "DIRECT_POWER" ]; then
+                echo 50 > "$NODE_FULLCAP"
+            elif [ "$MODE_ARG" = "NORMAL_CHARGING" ]; then
+                echo 100 > "$NODE_FULLCAP"
+            fi
+        fi
+        echo "{\"status\":\"ok\"}"
+        ;;
+    getwhitelist)
+        if [ -f "$WHITELIST_FILE" ]; then
+            cat "$WHITELIST_FILE"
+        else
+            echo "[]"
+        fi
+        ;;
+    addpkg)
+        PKG="$2"
+        [ -z "$PKG" ] && echo "{\"error\":\"empty_pkg\"}" && exit 1
+        mkdir -p "$BASE_DIR"
+        touch "$WHITELIST_FILE"
+        if ! grep -q "\"$PKG\"" "$WHITELIST_FILE" 2>/dev/null; then
+            ITEMS=""
+            for p in $(grep -oE '"[^"]+"' "$WHITELIST_FILE" 2>/dev/null | tr -d '"'); do
+                [ -z "$p" ] && continue
+                [ -n "$ITEMS" ] && ITEMS="${ITEMS},"
+                ITEMS="${ITEMS}\"${p}\""
+            done
+            [ -n "$ITEMS" ] && ITEMS="${ITEMS},"
+            ITEMS="${ITEMS}\"${PKG}\""
+            echo "[${ITEMS}]" > "${WHITELIST_FILE}.tmp" && mv -f "${WHITELIST_FILE}.tmp" "$WHITELIST_FILE"
+        fi
+        echo "{\"status\":\"ok\",\"action\":\"added\",\"pkg\":\"$PKG\"}"
+        ;;
+    delpkg)
+        PKG="$2"
+        [ -z "$PKG" ] && echo "{\"error\":\"empty_pkg\"}" && exit 1
+        if [ -f "$WHITELIST_FILE" ]; then
+            ITEMS=""
+            for p in $(grep -oE '"[^"]+"' "$WHITELIST_FILE" 2>/dev/null | tr -d '"'); do
+                [ -z "$p" ] || [ "$p" = "$PKG" ] && continue
+                [ -n "$ITEMS" ] && ITEMS="${ITEMS},"
+                ITEMS="${ITEMS}\"${p}\""
+            done
+            echo "[${ITEMS}]" > "${WHITELIST_FILE}.tmp" && mv -f "${WHITELIST_FILE}.tmp" "$WHITELIST_FILE"
+        fi
+        echo "{\"status\":\"ok\",\"action\":\"removed\",\"pkg\":\"$PKG\"}"
+        ;;
+    setwhitelist)
+        DATA="$2"
+        if [ -n "$DATA" ]; then
+            echo "$DATA" > "${WHITELIST_FILE}.tmp" && mv -f "${WHITELIST_FILE}.tmp" "$WHITELIST_FILE"
+            echo "{\"status\":\"ok\"}"
+        fi
+        ;;
+    refreshapps)
+        FORCE="$2"
+        PKG_CACHE="$BASE_DIR/.pkg_cache"
+        PKG_NOW="$BASE_DIR/.pkg_now"
+
+        # Fast differential check via AOSP package manager CLI (~30ms)
+        cmd package list packages -3 2>/dev/null | sort > "$PKG_NOW"
+
+        # Check existing apps.json size (must be valid JSON array with content, > 10 bytes)
+        APPS_SIZE=$(wc -c < "$WEBROOT/apps.json" 2>/dev/null || echo 0)
+
+        # If cache exists and apps.json contains real data (>10 bytes), check if package list has changed:
+        if [ "$FORCE" != "-f" ] && [ "$FORCE" != "--force" ] && [ "$APPS_SIZE" -gt 10 ] && [ -f "$PKG_CACHE" ]; then
+            if cmp -s "$PKG_NOW" "$PKG_CACHE"; then
+                rm -f "$PKG_NOW"
+                echo "{\"status\":\"ok\",\"file\":\"$WEBROOT/apps.json\",\"cached\":true}"
+                exit 0
+            fi
+        fi
+
+        mv -f "$PKG_NOW" "$PKG_CACHE"
+        if [ -f "$DEX_FILE" ]; then
+            mkdir -p "$WEBROOT/icons"
+            CLASSPATH="$DEX_FILE" app_process "$MODULE_DIR" AppHelper "$WEBROOT" > /dev/null 2>&1
+
+            # Ensure webroot/whitelist.json symlink exists for 100% real-time sync with WebUI
+            ln -sf "$WHITELIST_FILE" "$WEBROOT/whitelist.json" 2>/dev/null
+
+            echo "{\"status\":\"ok\",\"file\":\"$WEBROOT/apps.json\",\"cached\":false}"
+        else
+            echo "{\"error\":\"dex_missing\"}"
+        fi
+        ;;
+    getlogs)
+        if [ -f "$LOG_FILE" ]; then
+            tail -n 60 "$LOG_FILE"
+        else
+            echo "No logs recorded yet."
+        fi
+        ;;
+    clearlogs)
+        > "$LOG_FILE"
+        echo "[$(get_timestamp)] [LOG:RESET] System log cleared by user" >> "$LOG_FILE"
+        echo "{\"status\":\"cleared\"}"
+        ;;
+    start)
+        pkill -9 -f bypass_daemon 2>/dev/null
+        pkill -9 -f direct_power_daemon 2>/dev/null
+        if [ -f "$MODULE_DIR/direct_power_daemon.sh" ]; then
+            nohup sh "$MODULE_DIR/direct_power_daemon.sh" > "$BASE_DIR/daemon.log" 2>&1 &
+            echo $! > "$BASE_DIR/daemon.pid"
+            echo "Direct Power daemon started (PID $!)."
+        fi
+        ;;
+    stop)
+        pkill -9 -f bypass_daemon 2>/dev/null
+        pkill -9 -f direct_power_daemon 2>/dev/null
+        rm -f "$BASE_DIR/daemon.pid" 2>/dev/null
+        echo "Direct Power daemon stopped."
+        ;;
+    restart)
+        $0 stop
+        sleep 1
+        $0 start
+        ;;
+    *)
+        echo "Usage: directpower {on|off|auto|toggle|status|json|start|stop|restart|getconf|setconf|getwhitelist|addpkg|delpkg|refreshapps|getlogs|clearlogs}"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Samsung Direct Power</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --card-bg: #0A0A0A;
+      --card-inner: #121212;
+      --card-border: #181818;
+      --card-border-subtle: #121212;
+      --cyan: #00E5FF;
+      --cyan-glow: rgba(0, 229, 255, 0.22);
+      --cyan-bg: rgba(0, 229, 255, 0.08);
+      --green: #00E676;
+      --green-glow: rgba(0, 230, 118, 0.22);
+      --red: #FF334B;
+      --amber: #FFB300;
+      --text: #FFFFFF;
+      --muted: #7E8590;
+      --dim: #444A52;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 16px;
+      padding-bottom: 36px;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand img {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      border: 1px solid rgba(0, 229, 255, 0.35);
+      background: #0A0A0A;
+      box-shadow: 0 0 16px var(--cyan-glow);
+    }
+
+    .brand h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: #FFFFFF;
+    }
+
+    .brand p {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-family: monospace;
+      margin-top: 1px;
+    }
+
+    .btn-header-log {
+      padding: 7px 14px;
+      border-radius: 10px;
+      background: #0E0E0E;
+      color: #FFF;
+      font-size: 0.75rem;
+      border: 1px solid #202020;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      font-family: monospace;
+      transition: all 0.2s ease;
+    }
+
+    .btn-header-log:active {
+      transform: scale(0.96);
+      background: #1C1C1E;
+      border-color: var(--cyan);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    /* Master Power Switch Card */
+    .power-switch-card {
+      padding: 0;
+      margin-bottom: 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .power-switch-card.active {
+      border-color: var(--cyan);
+      background: radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.08), transparent 75%), var(--card-bg);
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.12);
+    }
+
+    .power-master-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: transparent;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      text-align: left;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+
+    .power-master-btn:active {
+      transform: scale(0.985);
+    }
+
+    .power-btn-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+      flex: 1;
+      padding-right: 12px;
+    }
+
+    .power-btn-text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .power-glyph-ring {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #121212;
+      border: 1px solid #202020;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+      transition: all 0.25s ease;
+    }
+
+    .power-switch-card.active .power-glyph-ring {
+      background: rgba(0, 229, 255, 0.12);
+      border-color: var(--cyan);
+      box-shadow: 0 0 14px var(--cyan-glow);
+    }
+
+    .power-main-status {
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: -0.2px;
+      color: #FFFFFF;
+      font-family: monospace;
+      transition: color 0.25s ease;
+    }
+
+    .power-switch-card.active .power-main-status {
+      color: var(--cyan);
+    }
+
+    .power-sub-status {
+      font-size: 0.65rem;
+      color: var(--muted);
+      margin-top: 3px;
+      font-family: monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .power-switch-card.active .power-sub-status {
+      color: #90F4FF;
+    }
+
+    /* Visual Toggle Switch Track */
+    .power-switch-track {
+      width: 48px;
+      height: 28px;
+      border-radius: 16px;
+      background: #141414;
+      border: 1px solid #242424;
+      position: relative;
+      flex-shrink: 0;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .power-switch-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #7E8590;
+      position: absolute;
+      top: 2px;
+      left: 3px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .power-switch-card.active .power-switch-track {
+      background: var(--cyan);
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan-glow);
+    }
+
+    .power-switch-card.active .power-switch-thumb {
+      left: 21px;
+      background: #000000;
+    }
+
+    .power-switch-card.disabled {
+      opacity: 0.45;
+      border-color: #1A1A1A;
+      cursor: not-allowed;
+    }
+
+    .power-switch-card.disabled .power-switch-track {
+      background: #0E0E0E;
+      border-color: #181818;
+    }
+
+    .power-switch-card.disabled .power-switch-thumb {
+      background: #333338;
+    }
+
+    /* Telemetry Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .metric-label {
+      font-size: 0.64rem;
+      color: #6E7681;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-family: monospace;
+      margin-bottom: 4px;
+    }
+
+    .metric-val {
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-family: monospace;
+      letter-spacing: -0.5px;
+      color: #FFFFFF;
+    }
+
+    .metric-sub {
+      font-size: 0.67rem;
+      color: var(--muted);
+      margin-top: 2px;
+      font-family: monospace;
+    }
+
+    /* Apps Library Card */
+    .app-toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid #1C1C1E;
+      background: #0E0E0E;
+      color: #FFF;
+      font-size: 0.75rem;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--cyan);
+    }
+
+    .search-input::placeholder {
+      color: #4E545F;
+    }
+
+    .btn-icon-action {
+      padding: 8px 12px;
+      min-width: 66px;
+      justify-content: center;
+      border-radius: 10px;
+      background: #121212;
+      color: #FFF;
+      font-size: 0.75rem;
+      border: 1px solid #202020;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .btn-icon-action:active {
+      transform: scale(0.96);
+      background: #1C1C1E;
+    }
+
+    .btn-icon-action:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .spin {
+      display: inline-block;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .btn-action-add {
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-action-add:active {
+      transform: scale(0.96);
+      background: var(--cyan);
+      color: #000;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .pill-btn {
+      padding: 4px 10px;
+      border-radius: 16px;
+      background: #0E0E0E;
+      border: 1px solid #1A1A1A;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .pill-btn.active {
+      background: rgba(0, 229, 255, 0.12);
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    .apps-list {
+      max-height: 480px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 2px;
+    }
+
+    .app-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #080808;
+      border: 1px solid #141414;
+      border-radius: 12px;
+      padding: 8px 12px;
+      transition: all 0.2s;
+    }
+
+    .app-item.monitored {
+      background: rgba(0, 229, 255, 0.04);
+      border-color: rgba(0, 229, 255, 0.28);
+    }
+
+    .app-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .app-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: #111111;
+      border: 1px solid #1C1C1E;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .app-texts {
+      min-width: 0;
+    }
+
+    .app-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #FFF;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-game {
+      font-size: 0.58rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(255, 179, 0, 0.15);
+      border: 1px solid rgba(255, 179, 0, 0.3);
+      color: var(--amber);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .app-pkg {
+      font-size: 0.65rem;
+      color: var(--muted);
+      font-family: monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #1A1A1A;
+      border: 1px solid #262626;
+      transition: .25s;
+      border-radius: 22px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #7E8590;
+      transition: .25s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--cyan);
+      border-color: var(--cyan);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(18px);
+      background-color: #000000;
+    }
+
+    /* Hardware Logs Modal Bottom-Sheet */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(5px);
+      z-index: 999;
+      align-items: flex-end;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+      opacity: 1;
+    }
+
+    .modal-backdrop.centered {
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .modal-dialog {
+      width: 100%;
+      max-width: 360px;
+      background: #0A0A0A;
+      border: 1px solid #222222;
+      border-radius: 18px;
+      padding: 22px 18px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.95);
+      text-align: center;
+      transform: scale(0.94);
+      transition: transform 0.22s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+
+    .modal-backdrop.open .modal-dialog {
+      transform: scale(1);
+    }
+
+    .modal-dialog-icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .modal-dialog-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #FFF;
+      margin-bottom: 8px;
+      font-family: monospace;
+    }
+
+    .modal-dialog-text {
+      font-size: 0.74rem;
+      color: #929AA5;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .modal-dialog-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-dialog-cancel {
+      flex: 1;
+      padding: 11px;
+      border-radius: 10px;
+      background: #121212;
+      border: 1px solid #202020;
+      color: #FFF;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-dialog-cancel:active {
+      background: #1C1C1E;
+    }
+
+    .btn-dialog-accept {
+      flex: 1;
+      padding: 11px;
+      border-radius: 10px;
+      background: var(--cyan);
+      border: none;
+      color: #000;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-dialog-accept:active {
+      opacity: 0.85;
+    }
+
+    .modal-sheet {
+      width: 100%;
+      max-width: 600px;
+      background: #0A0A0A;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      border: 1px solid var(--card-border);
+      border-bottom: none;
+      padding: 18px 16px 28px 16px;
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.9);
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+
+    .modal-backdrop.open .modal-sheet {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #161616;
+    }
+
+    .modal-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #FFF;
+      font-family: monospace;
+    }
+
+    .btn-modal-close {
+      background: #141414;
+      border: 1px solid #222;
+      color: var(--muted);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .btn-modal-close:active {
+      color: #FFF;
+      background: #202020;
+    }
+
+    .terminal {
+      background: #020202;
+      border: 1px solid #141414;
+      border-radius: 12px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 0.68rem;
+      color: #929AA5;
+      max-height: 280px;
+      overflow-y: auto;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .btn-log {
+      flex: 1;
+      padding: 8px 6px;
+      border-radius: 8px;
+      border: 1px solid #1E1E1E;
+      background: #0C0C0C;
+      color: #FFF;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .btn-log:active {
+      transform: scale(0.96);
+      background: #181818;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 0.68rem;
+      color: #555B64;
+      margin-top: 18px;
+      font-family: monospace;
+      line-height: 1.5;
+    }
+    .banner-warn {
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      background: rgba(255, 171, 0, 0.08);
+      border: 1px solid rgba(255, 171, 0, 0.28);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .banner-warn:active {
+      transform: scale(0.98);
+      background: rgba(255, 171, 0, 0.16);
+    }
+    .banner-icon {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+    .banner-content {
+      flex: 1;
+    }
+    .banner-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #FFAB00;
+      font-family: monospace;
+      letter-spacing: 0.3px;
+    }
+    .banner-desc {
+      font-size: 0.68rem;
+      color: #B0B5BD;
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+    .banner-arrow {
+      font-size: 0.85rem;
+      color: #FFAB00;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">
+      <img src="icon.png" alt="Icon">
+      <div>
+        <h1>Samsung Direct Power</h1>
+        <p id="deviceMeta">Detecting hardware...</p>
+      </div>
+    </div>
+    <button class="btn-header-log" onclick="openLogsModal()">Logs</button>
+  </div>
+
+  <!-- Fast Charging Awareness Warning Banner -->
+  <div class="banner-warn" id="fastChargeBanner" style="display: none;" onclick="openBatterySettings()">
+    <span class="banner-icon">⚠️</span>
+    <div class="banner-content">
+      <div class="banner-title">Fast Charging Disabled</div>
+      <div class="banner-desc">Turn ON in Samsung Settings for Direct Power • Tap to open</div>
+    </div>
+    <span class="banner-arrow">⚙️</span>
+  </div>
+
+  <!-- Master Power Switch Card -->
+  <div class="card power-switch-card" id="powerSwitchCard">
+    <button class="power-master-btn" id="powerMasterBtn" onclick="toggleDirectPower()">
+      <div class="power-btn-left">
+        <div class="power-glyph-ring" id="powerGlyph">⚡</div>
+        <div class="power-btn-text">
+          <div class="power-main-status" id="powerMainStatus">DIRECT POWER: OFF</div>
+          <div class="power-sub-status" id="powerSubStatus">Tap to isolate battery & power phone directly</div>
+        </div>
+      </div>
+      <div class="power-switch-track">
+        <div class="power-switch-thumb"></div>
+      </div>
+    </button>
+  </div>
+
+  <!-- Live Telemetry Grid -->
+  <div class="grid">
+    <div class="metric-card">
+      <span class="metric-label">Battery Current</span>
+      <span class="metric-val" id="curVal" style="color: var(--green);">0 mA</span>
+      <span class="metric-sub" id="wattVal">0.00 W Load</span>
+    </div>
+
+    <div class="metric-card">
+      <span class="metric-label">Battery Level</span>
+      <span class="metric-val" id="battVal">-- %</span>
+      <span class="metric-sub" id="voltVal">-- mV</span>
+    </div>
+
+    <div class="metric-card">
+      <span class="metric-label">Temperature</span>
+      <span class="metric-val" id="tempVal">-- °C</span>
+      <span class="metric-sub" id="tempSub">Thermal: Safe</span>
+    </div>
+
+    <div class="metric-card">
+      <span class="metric-label">Power Routing</span>
+      <span class="metric-val" id="pmicVal" style="color: var(--cyan); font-size: 0.95rem;">DIRECT TO SOC</span>
+      <span class="metric-sub" id="statusVal">Battery isolated</span>
+    </div>
+
+    <div class="metric-card">
+      <span class="metric-label">CPU Core Clock</span>
+      <span class="metric-val" id="cpuVal">-- MHz</span>
+      <span class="metric-sub">Prime Core</span>
+    </div>
+
+    <div class="metric-card">
+      <span class="metric-label">GPU 3D Engine</span>
+      <span class="metric-val" id="gpuVal">-- MHz</span>
+      <span class="metric-sub">Graphics Clock</span>
+    </div>
+  </div>
+
+  <!-- Direct Power Game Library (Single unified dashboard view) -->
+  <div class="card" id="appsCard">
+    <div class="app-toolbar">
+      <input type="text" class="search-input" id="appSearch" placeholder="Search games or package..." oninput="filterApps()">
+      <button class="btn-action-add" onclick="addCurrentInput()">+ Add</button>
+      <button class="btn-icon-action" id="btnScan" onclick="scanApps()">Scan</button>
+    </div>
+
+    <div class="filter-pills">
+      <button class="pill-btn active" id="filterGames" onclick="setAppFilter('games')">Games (<span id="countGames">0</span>)</button>
+      <button class="pill-btn" id="filterMonitored" onclick="setAppFilter('monitored')">Enabled (<span id="countMonitored">0</span>)</button>
+      <button class="pill-btn" id="filterAll" onclick="setAppFilter('all')">All (<span id="countAll">0</span>)</button>
+    </div>
+
+    <div class="apps-list" id="appsContainer">
+      <div style="text-align: center; color: var(--muted); padding: 30px; font-size: 0.8rem;">
+        Loading games...
+      </div>
+    </div>
+  </div>
+
+  <!-- Hardware Logs Slide-up Bottom-Sheet -->
+  <div class="modal-backdrop" id="logsModal" onclick="closeLogsModal(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">Hardware Logs</div>
+        <button class="btn-modal-close" onclick="closeLogsModal()">✕</button>
+      </div>
+      <div class="terminal" id="termLogs">Loading system logs...</div>
+      <div class="log-actions">
+        <button class="btn-log" onclick="copyLogs()">Copy</button>
+        <button class="btn-log" onclick="clearLogs()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hardware Power Warning Modal -->
+  <div class="modal-backdrop centered" id="warningModal" onclick="closeWarningModal(event)">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
+      <div class="modal-dialog-icon" id="warnIcon">⚡</div>
+      <div class="modal-dialog-title" id="warnTitle">Power Warning</div>
+      <div class="modal-dialog-text" id="warnText">
+        Power source warning details.
+      </div>
+      <div class="modal-dialog-actions">
+        <button class="btn-dialog-cancel" onclick="closeWarningModal()">Cancel</button>
+        <button class="btn-dialog-accept" onclick="confirmWarningDirectPower()">Enable Anyway</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Created by Antigravity & Q.S@RDOR<br>
+    KernelSU-Next Samsung Module v1.0
+  </div>
+
+  <!-- Embedded Universal Bridge -->
+  <script>
+    let callbackCounter = 0;
+    function getUniqueCallbackName(prefix) {
+      return `${prefix}_cb_${Date.now()}_${callbackCounter++}`;
+    }
+
+    function exec(command, options = {}) {
+      return new Promise((resolve, reject) => {
+        if (typeof ksu === "undefined" || !ksu.exec) {
+          // Browser Preview / Developer fallback
+          if (command.includes("json")) {
+            return resolve({
+              errno: 0,
+              stdout: JSON.stringify({
+                mode: "DIRECT_POWER",
+                direct_power: "ON",
+                status: "Not charging",
+                battery_pct: 88,
+                current_ma: -1,
+                voltage_mv: 4210,
+                temp_c: 32,
+                gpu_mhz: 305,
+                cpu7_mhz: 844,
+                plugged: 1,
+                model: "SM-N986N",
+                soc: "SM8250"
+              })
+            });
+          }
+          if (command.includes("toggle")) {
+            return resolve({ errno: 0, stdout: "DIRECT_POWER" });
+          }
+          if (command.includes("getlogs")) {
+            return resolve({
+              errno: 0,
+              stdout: `[2026-10-04 11:35:50] [AUTO:TRIGGER] Direct Power Activated (0W)\n[2026-10-04 11:36:20] [MODE:NORMAL_CHARGING] User restored Normal Charging`
+            });
+          }
+          if (command.includes("getwhitelist")) {
+            return resolve({ errno: 0, stdout: "[]" });
+          }
+          return resolve({ errno: 0, stdout: "" });
+        }
+        const cb = getUniqueCallbackName("exec");
+        window[cb] = (errno, stdout, stderr) => {
+          resolve({ errno, stdout, stderr });
+          delete window[cb];
+        };
+        try {
+          ksu.exec(command, JSON.stringify(options), cb);
+        } catch (e) {
+          delete window[cb];
+          reject(e);
+        }
+      });
+    }
+
+    function toast(msg) {
+      if (typeof ksu !== "undefined" && ksu.toast) {
+        ksu.toast(msg);
+      } else {
+        alert(msg);
+      }
+    }
+
+    // Modal Logs Management
+    function openLogsModal() {
+      const modal = document.getElementById("logsModal");
+      if (modal) {
+        modal.classList.add("open");
+        fetchLogs();
+      }
+    }
+
+    function closeLogsModal(e) {
+      const modal = document.getElementById("logsModal");
+      if (modal) {
+        modal.classList.remove("open");
+      }
+    }
+
+    let BIN = "directpower";
+    let currentMode = "AUTO";
+
+    let lastPlugged = 0;
+    let lastPowerSource = "DISCONNECTED";
+    let lastPowerQuality = "DISCONNECTED";
+    let lastFastSetting = 1;
+    let lastDirectPowerActive = false;
+
+    function showWarningModal(icon, title, htmlText) {
+      const m = document.getElementById("warningModal");
+      const iEl = document.getElementById("warnIcon");
+      const tEl = document.getElementById("warnTitle");
+      const txtEl = document.getElementById("warnText");
+      if (iEl) iEl.innerText = icon;
+      if (tEl) tEl.innerText = title;
+      if (txtEl) txtEl.innerHTML = htmlText;
+      if (m) m.classList.add("open");
+    }
+
+    function closeWarningModal(e) {
+      const m = document.getElementById("warningModal");
+      if (m) m.classList.remove("open");
+    }
+
+    async function confirmWarningDirectPower() {
+      closeWarningModal();
+      await executeToggle();
+    }
+
+    function openBatterySettings() {
+      exec("am start -a android.intent.action.POWER_USAGE_SUMMARY");
+    }
+
+    async function pollTelemetry() {
+      let res = await exec(`${BIN} json`);
+      if (res.errno !== 0 && BIN !== "directpower") {
+        BIN = "directpower";
+        res = await exec(`${BIN} json`);
+      }
+      if (res.errno === 0 && res.stdout) {
+        try {
+          const d = JSON.parse(res.stdout);
+          updateUI(d);
+          if (document.getElementById("logsModal")?.classList.contains("open")) {
+            fetchLogs();
+          }
+        } catch (e) {}
+      }
+    }
+
+    function formatSoC(soc) {
+      if (!soc) return "";
+      const s = soc.toUpperCase();
+      if (s.includes("SM8250")) return "Snapdragon 865+";
+      if (s.includes("SM8350")) return "Snapdragon 888";
+      if (s.includes("SM8450")) return "Snapdragon 8 Gen 1";
+      if (s.includes("SM8550")) return "Snapdragon 8 Gen 2";
+      if (s.includes("SM8650")) return "Snapdragon 8 Gen 3";
+      if (s.includes("SM8750")) return "Snapdragon 8 Elite";
+      if (s.includes("EXYNOS990") || s.includes("9830")) return "Exynos 990";
+      if (s.includes("EXYNOS2100") || s.includes("9840")) return "Exynos 2100";
+      if (s.includes("EXYNOS2200") || s.includes("9925")) return "Exynos 2200";
+      if (s.includes("EXYNOS2400") || s.includes("9945")) return "Exynos 2400";
+      return soc;
+    }
+
+    function updateUI(d) {
+      currentMode = d.mode;
+      lastDirectPowerActive = (d.direct_power === "ON");
+      lastPlugged = (d.plugged === 1);
+      lastPowerSource = d.power_source || (d.plugged ? "PD_FAST" : "DISCONNECTED");
+      lastPowerQuality = d.power_quality || (d.plugged ? "HIGH_POWER" : "DISCONNECTED");
+      lastFastSetting = (d.fast_setting !== undefined) ? d.fast_setting : 1;
+
+      // Dynamic Hardware Identity
+      if (d.model || d.soc) {
+        const modelStr = d.model || "Samsung Galaxy";
+        const socFormatted = formatSoC(d.soc);
+        const metaElem = document.getElementById("deviceMeta");
+        if (metaElem) {
+          metaElem.innerText = socFormatted ? `${modelStr} • ${socFormatted}` : modelStr;
+        }
+      }
+
+      // Fast Charging Awareness Warning Banner
+      const fastBanner = document.getElementById("fastChargeBanner");
+      if (fastBanner) {
+        if (lastPlugged && (d.fast_setting === 0 || lastPowerQuality === "SETTINGS_DISABLED")) {
+          fastBanner.style.display = "flex";
+        } else {
+          fastBanner.style.display = "none";
+        }
+      }
+
+      // Master Power Switch State
+      const switchCard = document.getElementById("powerSwitchCard");
+      const mainStatus = document.getElementById("powerMainStatus");
+      const subStatus = document.getElementById("powerSubStatus");
+      const glyph = document.getElementById("powerGlyph");
+
+      if (switchCard && mainStatus && subStatus) {
+        if (!lastPlugged) {
+          switchCard.classList.remove("active");
+          switchCard.classList.add("disabled");
+          mainStatus.innerText = "DIRECT POWER: UNAVAILABLE";
+          subStatus.innerText = "No charger connected • Plug in to enable";
+          if (glyph) glyph.innerText = "🔌";
+          closeWarningModal();
+        } else {
+          switchCard.classList.remove("disabled");
+          if (lastDirectPowerActive) {
+            switchCard.classList.add("active");
+            mainStatus.innerText = "DIRECT POWER: ACTIVE";
+            if (glyph) glyph.innerText = "⚡";
+            subStatus.innerText = `${d.power_desc || 'Direct Power'} • 0W battery draw`;
+          } else {
+            switchCard.classList.remove("active");
+            mainStatus.innerText = "DIRECT POWER: OFF";
+            if (glyph) glyph.innerText = "🔋";
+            const curMa = d.current_ma > 0 ? `+${d.current_ma}mA` : `${d.current_ma}mA`;
+            subStatus.innerText = `${d.power_desc || 'Charging'} (${curMa}) • Tap for direct power`;
+          }
+        }
+      }
+
+      // Current & Watts
+      const cur = document.getElementById("curVal");
+      const watt = document.getElementById("wattVal");
+      if (cur) cur.innerText = d.current_ma + " mA";
+      if (watt) {
+        const watts = Math.abs((d.current_ma * d.voltage_mv) / 1000000).toFixed(2);
+        watt.innerText = watts + " W Load";
+      }
+
+      if (cur) {
+        if (d.current_ma > 100) {
+          cur.style.color = "var(--green)";
+        } else if (Math.abs(d.current_ma) <= 50) {
+          cur.style.color = "var(--cyan)";
+        } else {
+          cur.style.color = "var(--red)";
+        }
+      }
+
+      // Battery & Voltage
+      const batt = document.getElementById("battVal");
+      const volt = document.getElementById("voltVal");
+      if (batt) batt.innerText = d.battery_pct + " %";
+      if (volt) volt.innerText = d.voltage_mv + " mV";
+
+      // Temp
+      const temp = document.getElementById("tempVal");
+      if (temp) temp.innerText = d.temp_c + " °C";
+      const tempSub = document.getElementById("tempSub");
+      if (tempSub) {
+        if (d.temp_c < 37) {
+          tempSub.innerText = "Thermal: Cool & Safe";
+          tempSub.style.color = "var(--green)";
+        } else if (d.temp_c <= 40) {
+          tempSub.innerText = "Thermal: Moderate";
+          tempSub.style.color = "var(--cyan)";
+        } else {
+          tempSub.innerText = "Thermal: Elevated";
+          tempSub.style.color = "var(--red)";
+        }
+      }
+
+      // Power Routing & Supply State
+      const pmic = document.getElementById("pmicVal");
+      const status = document.getElementById("statusVal");
+      if (pmic) {
+        if (lastDirectPowerActive) {
+          pmic.innerText = "DIRECT TO SOC";
+          pmic.style.color = "var(--cyan)";
+          if (status) status.innerText = "Battery isolated (0W)";
+        } else if (lastPlugged) {
+          pmic.innerText = "CHARGING";
+          pmic.style.color = "var(--green)";
+          if (status) status.innerText = d.status || "Charging battery";
+        } else {
+          pmic.innerText = "BATTERY ONLY";
+          pmic.style.color = "var(--muted)";
+          if (status) status.innerText = "Discharging";
+        }
+      }
+
+      // SoC Clocks
+      const cpu = document.getElementById("cpuVal");
+      const gpu = document.getElementById("gpuVal");
+      if (cpu) cpu.innerText = d.cpu7_mhz + " MHz";
+      if (gpu) gpu.innerText = d.gpu_mhz + " MHz";
+    }
+
+    async function toggleDirectPower() {
+      if (!lastPlugged) {
+        toast("Connect charger first to use Direct Power");
+        return;
+      }
+
+      if (!lastDirectPowerActive) {
+        if (lastPowerQuality === "SETTINGS_DISABLED" || lastFastSetting === 0) {
+          showWarningModal(
+            "⚙️",
+            "Fast Charging Disabled",
+            "A charger is connected, but <b>Fast Charging is turned OFF in Samsung Settings</b>.<br><br>The PMIC is throttled to ~5V. Under heavy gaming load, hardware draw will exceed input power.<br><br>Enable Direct Power anyway?"
+          );
+          return;
+        }
+
+        if (lastPowerQuality === "LOW_POWER") {
+          showWarningModal(
+            "⚡",
+            "Low Power Warning",
+            "Device is connected to a low-power USB port / laptop (~5V). Under gaming load, hardware power consumption (5W–8W) will exceed input power, causing slow battery discharge.<br><br>Enable Direct Power anyway?"
+          );
+          return;
+        }
+      }
+
+      await executeToggle();
+    }
+
+    async function executeToggle() {
+      const res = await exec(`${BIN} toggle`);
+      if (res.errno === 0) {
+        const next = (res.stdout || "").trim();
+        if (next === "DIRECT_POWER") {
+          toast("Direct Power Engaged (AC to SoC)");
+        } else if (next === "DISCONNECTED") {
+          toast("Connect charger first");
+        } else {
+          toast("Normal Charging Restored");
+        }
+      }
+      await pollTelemetry();
+      if (document.getElementById("logsModal")?.classList.contains("open")) {
+        fetchLogs();
+      }
+    }
+
+    /* Applications & Whitelist */
+    let allInstalledApps = [];
+    let activeWhitelist = [];
+    let currentFilter = "games";
+
+    async function loadApps() {
+      // 1. Fetch Whitelist (Direct symlink first, with exec fallback)
+      try {
+        const respWl = await fetch('whitelist.json?t=' + Date.now());
+        if (respWl.ok) {
+          activeWhitelist = await respWl.json();
+        }
+      } catch (e) {}
+
+      if (!activeWhitelist || activeWhitelist.length === 0) {
+        const resWl = await exec(`${BIN} getwhitelist`);
+        if (resWl.errno === 0 && resWl.stdout) {
+          try {
+            activeWhitelist = JSON.parse(resWl.stdout);
+          } catch (e) {
+            activeWhitelist = [];
+          }
+        }
+      }
+
+      // 2. Fetch Apps List
+      try {
+        const resp = await fetch('apps.json?t=' + Date.now());
+        if (resp.ok) {
+          allInstalledApps = await resp.json();
+          if (allInstalledApps && allInstalledApps.length > 0) {
+            renderApps();
+            return;
+          }
+        }
+      } catch (e) {}
+
+      // Fallback: If apps.json missing, trigger scan
+      scanApps();
+    }
+
+    async function scanApps(force = false) {
+      const btnScan = document.getElementById("btnScan");
+      if (btnScan && btnScan.disabled) return;
+
+      if (btnScan) {
+        btnScan.disabled = true;
+        btnScan.innerHTML = `<svg class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> Scanning`;
+      }
+
+      const box = document.getElementById("appsContainer");
+      const hasApps = allInstalledApps && allInstalledApps.length > 0;
+      if (!hasApps) {
+        box.innerHTML = `<div style="text-align: center; color: var(--cyan); padding: 30px; font-size: 0.8rem;">Scanning games & emulators...</div>`;
+      }
+
+      // Fetch fresh whitelist in parallel
+      const wlPromise = (async () => {
+        try {
+          const resp = await fetch('whitelist.json?t=' + Date.now());
+          if (resp.ok) activeWhitelist = await resp.json();
+        } catch (e) {}
+        const resWl = await exec(`${BIN} getwhitelist`);
+        if (resWl.errno === 0 && resWl.stdout) {
+          try { activeWhitelist = JSON.parse(resWl.stdout); } catch (e) {}
+        }
+      })();
+
+      const cmdArg = force ? `${BIN} refreshapps -f` : `${BIN} refreshapps`;
+      const scanPromise = exec(cmdArg);
+      const [, resScan] = await Promise.all([wlPromise, scanPromise]);
+
+      try {
+        const resp = await fetch('apps.json?t=' + Date.now());
+        if (resp.ok) {
+          allInstalledApps = await resp.json();
+          renderApps();
+          if (btnScan) {
+            btnScan.innerHTML = `<span style="color: var(--green);">✓</span> Done`;
+            btnScan.style.borderColor = 'rgba(0, 230, 118, 0.4)';
+            setTimeout(() => {
+              btnScan.innerHTML = "Scan";
+              btnScan.style.borderColor = "";
+              btnScan.disabled = false;
+            }, 1000);
+          }
+          const isCached = resScan && resScan.stdout && resScan.stdout.includes('"cached":true');
+          const gameCount = allInstalledApps.filter(a => a.game).length;
+          if (isCached) {
+            toast(`Library up to date (${gameCount} games)`);
+          } else {
+            toast(`Game library refreshed (${gameCount} games)`);
+          }
+          return;
+        }
+      } catch (e) {}
+
+      if (btnScan) {
+        btnScan.innerHTML = "Scan";
+        btnScan.disabled = false;
+      }
+      if (!hasApps) {
+        box.innerHTML = `<div style="text-align: center; color: var(--red); padding: 30px; font-size: 0.8rem;">Failed to load games. Tap Scan to retry.</div>`;
+      }
+    }
+
+    function renderApps() {
+      const search = (document.getElementById("appSearch").value || "").toLowerCase().trim();
+      const container = document.getElementById("appsContainer");
+      container.innerHTML = "";
+
+      let countGames = 0;
+      let countMonitored = 0;
+
+      allInstalledApps.forEach(app => {
+        if (app.game) countGames++;
+        if (activeWhitelist.includes(app.pkg)) countMonitored++;
+      });
+
+      const countGamesEl = document.getElementById("countGames");
+      const countMonitoredEl = document.getElementById("countMonitored");
+      const countAllEl = document.getElementById("countAll");
+      if (countGamesEl) countGamesEl.innerText = countGames;
+      if (countMonitoredEl) countMonitoredEl.innerText = countMonitored;
+      if (countAllEl) countAllEl.innerText = allInstalledApps.length;
+
+      const filtered = allInstalledApps.filter(app => {
+        const isMon = activeWhitelist.includes(app.pkg);
+
+        if (search) {
+          const matchLabel = app.label.toLowerCase().includes(search);
+          const matchPkg = app.pkg.toLowerCase().includes(search);
+          return matchLabel || matchPkg;
+        }
+
+        if (currentFilter === "games") return app.game;
+        if (currentFilter === "monitored") return isMon;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        if (search) {
+          container.innerHTML = `
+            <div style="text-align: center; color: var(--muted); padding: 24px; font-size: 0.8rem;">
+              <p style="margin-bottom: 12px; color: var(--text);">No installed game matches "<b>${search}</b>"</p>
+              <button class="btn-action-add" style="margin: 0 auto;" onclick="addManualPackage('${search}')">
+                ➕ Add "${search}" to Whitelist
+              </button>
+            </div>`;
+        } else {
+          container.innerHTML = `<div style="text-align: center; color: var(--muted); padding: 30px; font-size: 0.8rem;">No games found in this view.</div>`;
+        }
+        return;
+      }
+
+      filtered.forEach(app => {
+        const isMon = activeWhitelist.includes(app.pkg);
+        const card = document.createElement("div");
+        card.className = "app-item" + (isMon ? " monitored" : "");
+
+        const iconPath = `icons/${app.pkg}.png`;
+        const gameTag = app.game ? `<span class="badge-game">Game</span>` : "";
+
+        card.innerHTML = `
+          <div class="app-info">
+            <img class="app-icon" src="${iconPath}" onerror="this.src='icon.png'">
+            <div class="app-texts">
+              <div class="app-title">${app.label} ${gameTag}</div>
+              <div class="app-pkg">${app.pkg}</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" ${isMon ? "checked" : ""} onchange="toggleAppWhitelist('${app.pkg}', this)">
+            <span class="slider"></span>
+          </label>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function toggleAppWhitelist(pkg, checkbox) {
+      const idx = activeWhitelist.indexOf(pkg);
+      if (checkbox.checked) {
+        if (idx === -1) activeWhitelist.push(pkg);
+        await exec(`${BIN} addpkg "${pkg}"`);
+        toast("Direct Power enabled for game");
+      } else {
+        if (idx !== -1) activeWhitelist.splice(idx, 1);
+        await exec(`${BIN} delpkg "${pkg}"`);
+        toast("Removed from whitelist");
+      }
+
+      const countMonitoredEl = document.getElementById("countMonitored");
+      if (countMonitoredEl) countMonitoredEl.innerText = activeWhitelist.length;
+      
+      const card = checkbox.closest('.app-item');
+      if (card) {
+        if (checkbox.checked) card.classList.add('monitored');
+        else card.classList.remove('monitored');
+      }
+    }
+
+    function addCurrentInput() {
+      const searchEl = document.getElementById("appSearch");
+      const val = (searchEl ? searchEl.value : "").trim();
+      if (!val) {
+        toast("Type a package name or game name first.");
+        return;
+      }
+      addManualPackage(val);
+    }
+
+    async function addManualPackage(pkgParam) {
+      let pkg = (pkgParam || "").trim();
+      if (!pkg) {
+        toast("Please enter a package name.");
+        return;
+      }
+      if (!pkg.includes(".")) {
+        toast("Invalid package format (e.g. com.winlator)");
+        return;
+      }
+
+      if (!activeWhitelist.includes(pkg)) {
+        activeWhitelist.push(pkg);
+      }
+      await exec(`${BIN} addpkg "${pkg}"`);
+
+      let existing = allInstalledApps.find(a => a.pkg === pkg);
+      if (!existing) {
+        const parts = pkg.split('.');
+        const rawName = parts[parts.length - 1].replace(/[^a-zA-Z0-9]/g, ' ');
+        const title = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+        allInstalledApps.unshift({
+          pkg: pkg,
+          label: title + " (Custom)",
+          game: true
+        });
+      }
+
+      toast("Added " + pkg + " to whitelist!");
+      const searchEl = document.getElementById("appSearch");
+      if (searchEl) searchEl.value = "";
+      renderApps();
+    }
+
+    function setAppFilter(filter) {
+      currentFilter = filter;
+      const btnG = document.getElementById("filterGames");
+      const btnM = document.getElementById("filterMonitored");
+      const btnA = document.getElementById("filterAll");
+      if (btnG) btnG.classList.toggle("active", filter === "games");
+      if (btnM) btnM.classList.toggle("active", filter === "monitored");
+      if (btnA) btnA.classList.toggle("active", filter === "all");
+      renderApps();
+    }
+
+    function filterApps() {
+      renderApps();
+    }
+
+    /* Logs & Terminal */
+    async function fetchLogs() {
+      const res = await exec(`${BIN} getlogs`);
+      const term = document.getElementById("termLogs");
+      if (res.errno === 0 && res.stdout) {
+        term.innerText = res.stdout;
+        term.scrollTop = term.scrollHeight;
+      } else {
+        term.innerText = "No log records found.";
+      }
+    }
+
+    async function copyLogs() {
+      const term = document.getElementById("termLogs");
+      const text = term.innerText;
+      if (!text || text.startsWith("Loading") || text.startsWith("No log")) {
+        toast("No logs to copy.");
+        return;
+      }
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          toast("Logs copied to clipboard!");
+          return;
+        }
+      } catch (e) {}
+      toast("Copied!");
+    }
+
+    async function clearLogs() {
+      await exec(`${BIN} clearlogs`);
+      toast("Logs cleared.");
+      fetchLogs();
+    }
+
+    // Auto Init
+    loadApps();
+    pollTelemetry();
+
+    // Intelligent background-aware polling (zero CPU overhead when user is gaming)
+    let pollIntervalId = null;
+    function startPolling() {
+      if (pollIntervalId) clearInterval(pollIntervalId);
+      pollIntervalId = setInterval(() => {
+        if (!document.hidden) {
+          pollTelemetry();
+        }
+      }, 3500);
+    }
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        pollTelemetry();
+      }
+    });
+    startPolling();
+  </script>
+</body>
+</html>

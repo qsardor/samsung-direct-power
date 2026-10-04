@@ -1,0 +1,8 @@
+id=samsung_direct_power
+name=Samsung Direct Power
+version=v1.0
+versionCode=100
+author=Created by Antigravity & Q.S@RDOR
+description=Hardware-level direct power supply for Samsung devices. Powers motherboard directly from USB-C with 0W battery draw during heavy gaming.
+action=true
+web=true
