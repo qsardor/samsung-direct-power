@@ -1,4 +1,3 @@
-import android.app.ActivityThread;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -47,7 +46,9 @@ public class AppHelper {
                 Looper.prepare();
             }
 
-            Context context = ActivityThread.systemMain().getSystemContext();
+            Class<?> atClass = Class.forName("android.app.ActivityThread");
+            Object at = atClass.getMethod("systemMain").invoke(null);
+            Context context = (Context) atClass.getMethod("getSystemContext").invoke(at);
             PackageManager pm = context.getPackageManager();
 
             String webDir = args.length > 0 ? args[0] : "/data/adb/modules/samsung_direct_power/webroot";

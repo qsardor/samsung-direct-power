@@ -4,4 +4,11 @@
 .DS_Store
 Thumbs.db
 webroot/icons/*.png
+!webroot/icons/.gitkeep
 *.zip
+*.sha256
+*.tar
+*.gz
+*.apk
+.idea/
+.vscode/

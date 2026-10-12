@@ -29,7 +29,9 @@ flowchart LR
 
 ---
 
-## 2. 15-Minute Continuous Gaming Benchmark
+## 2. Empirical Gaming Benchmarks
+
+### A. Passive Cooling Benchmark (15 min High-Load Match)
 
 Empirical telemetry measured during continuous high-load *Call of Duty Mobile* gameplay at maximum graphics (120Hz/60FPS unthrottled):
 
@@ -41,6 +43,19 @@ Empirical telemetry measured during continuous high-load *Call of Duty Mobile* g
 | **Peak Battery Temp** | **41.0 °C (Avg: 38.9 °C)** | **44.0 °C (Avg: 41.8 °C)** | **-3.0 °C Cooler** |
 | **CPU Prime Core** | **3091 MHz (Unthrottled)** | **1977 MHz (Throttled)** | **+1.11 GHz sustained headroom** |
 | **Adreno 650 GPU** | **670 MHz (Maximum sustained)**| **441 MHz (Throttled)** | **+229 MHz sustained clock** |
+
+### B. Active Cooler + Direct Power Benchmark (10 min eSports Match)
+
+Empirical telemetry measured during continuous competitive *Call of Duty Mobile* gameplay with external active air/Peltier cooling:
+
+| Metric | Direct Power + Cooler | Battery Discharge + Cooler | Empirical Outcome |
+| :--- | :--- | :--- | :--- |
+| **Duration** | 10.2 min continuous | 8.5 min continuous | High-load competitive match |
+| **Battery Temp (Start → End)** | **25.7 °C → 25.0 °C** | 21.4 °C → 24.5 °C | **ΔT = -0.7 °C (Net Cooling)** |
+| **Peak Battery Temp** | **26.0 °C** | 24.6 °C | Sub-room thermal baseline |
+| **Prime Core 3.09 GHz Boost** | **45.1% sustained** | 39.1% sustained | **+6.0% time at max boost** |
+| **Prime Core Sustained Clock** | **2,101 MHz average** | 1,927 MHz average | **+174 MHz clock headroom** |
+| **SoC Peak Temperature** | **61.8 °C (Zero throttling)** | 57.9 °C | Zero thermal throttling |
 
 ---
 
