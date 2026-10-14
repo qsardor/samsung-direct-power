@@ -31,8 +31,7 @@ echo 0 > /sys/class/power_supply/battery/batt_slate_mode 2>/dev/null
 
 # Launch daemon in background
 if [ -f "$DAEMON" ]; then
-    nohup sh "$DAEMON" > /data/adb/samsung_direct_power/daemon.log 2>&1 &
-    echo $! > "$PIDFILE"
+    ( sh "$DAEMON" </dev/null > /data/adb/samsung_direct_power/daemon.log 2>&1 & )
 fi
 
 # Auto-index games in background on boot

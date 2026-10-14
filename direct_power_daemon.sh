@@ -18,6 +18,12 @@ NODE_TEMP="/sys/class/power_supply/battery/temp"
 NODE_CAP="/sys/class/power_supply/battery/capacity"
 
 mkdir -p "$BASE_DIR"
+if [ -f "$PIDFILE" ]; then
+    OLD_PID=$(cat "$PIDFILE" 2>/dev/null)
+    if [ -n "$OLD_PID" ] && [ "$OLD_PID" != "$$" ] && [ -d "/proc/$OLD_PID" ]; then
+        kill -9 "$OLD_PID" 2>/dev/null
+    fi
+fi
 echo $$ > "$PIDFILE"
 
 # Max out priority so Android OOM-killer never terminates the governor
@@ -197,7 +203,7 @@ while true; do
     fi
 
     # Process Pre-Filter: Check if ANY whitelisted package is even running in memory (~1ms)
-    local any_game_running=0
+    any_game_running=0
     for pkg in $(grep -oE '"[^"]+"' "$WHITELIST_FILE" 2>/dev/null | tr -d '"'); do
         if pidof "$pkg" >/dev/null 2>&1; then
             any_game_running=1
